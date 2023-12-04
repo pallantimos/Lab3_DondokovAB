@@ -6,5 +6,5 @@ import (
 
 func main() {
 	conrtoller := new(Main_Program.Conrtoller)
-	conrtoller.GetInfo()
+	conrtoller.Run()
 }

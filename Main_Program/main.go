@@ -18,21 +18,42 @@ func (r Registration) checkRegistrate(login string, pass string, pass2 string) (
 	err := ""
 	isCorrect := true
 
-	err, isCorrect = r.checkPass(pass, pass2)
+	err, isCorrect = r.checkLogin(login)
 
 	if isCorrect {
-		err, isCorrect = r.checkLogin(login)
+		err, isCorrect = r.checkPass(pass, pass2)
 	}
 
 	return err, isCorrect
 }
 
 func (r Registration) checkLogin(login string) (string, bool) {
-	listLogin := [5]string{"Aldar", "Aleksey", "Ivan", "Mikhail", "Krug"}
+	dbpg, err := sql.Open("postgres", "user=Aldar password=123 dbname=Lab3 sslmode=disable")
+	if err != nil {
+		panic(err)
+	}
 
-	for i := 0; i < len(listLogin); i++ {
-		if login == listLogin[i] {
-			return "Логин уже существует", false
+	rows, err := dbpg.Query("SELECT * FROM users")
+	if err != nil {
+		panic(err)
+	}
+
+	var user_arr [][]string
+
+	for rows.Next() {
+		user := make([]string, 5)
+		err = rows.Scan(&user[0], &user[1], &user[2], &user[3], &user[4])
+		if err != nil {
+			panic(err)
+		}
+		user_arr = append(user_arr, user)
+	}
+
+	defer dbpg.Close()
+
+	for i := 0; i < len(user_arr); i++ {
+		if login == user_arr[i][0] {
+			return user_arr[i][0] + " " + user_arr[i][1] + " " + user_arr[i][2] + " " + user_arr[i][3] + " " + user_arr[i][4], false
 		}
 
 	}
@@ -131,33 +152,13 @@ func (db DbWorker) Add(login string, pass string, pass2 string) string {
 	var result_auth bool
 	err_auth, result_auth = r.checkRegistrate(login, pass, pass2)
 
+	if err_auth != "" {
+		return err_auth
+	}
+
 	_, err = dbpg.Exec(fmt.Sprintf("INSERT INTO public.users(login, pass, pass2, result_auth, err_msg)VALUES ('%s', '%s', '%s', '%t', '%s');", login, pass, pass2, result_auth, err_auth))
 	if err != nil {
 		panic(err)
-	}
-
-	rows, err := dbpg.Query("SELECT * FROM users")
-	if err != nil {
-		panic(err)
-	}
-
-	for rows.Next() {
-		var login string
-		var pass string
-		var pass2 string
-		var errorString string
-
-		rows.Scan()
-
-		err = rows.Scan(&login, &pass, &pass2, &result_auth, &errorString)
-		if err != nil {
-			panic(err)
-		}
-		print(login)
-	}
-
-	if err_auth != "" {
-		return err_auth
 	}
 
 	defer dbpg.Close()
@@ -230,13 +231,21 @@ func (db DbWorker) DeleteUser(login string) {
 	defer dbpg.Close()
 }
 
-type Conrtoller struct {
+type Console struct {
 }
 
-func (ct Conrtoller) GetInfo() {
+func (c Console) Read() string {
 	fmt.Println("Введите что хотите сделать 1 - запись, 2 - удаление, 3 - получить данные о всех пользователях, 4 - получить данные о пользователе")
 	var answer string
 	fmt.Scanln(&answer)
+	return answer
+}
+
+type Conrtoller struct {
+}
+
+func (ct Conrtoller) Run() {
+	var answer = Console.Read(*new(Console))
 
 	switch answer {
 	case "1":
